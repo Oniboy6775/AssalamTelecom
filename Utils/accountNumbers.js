@@ -54,6 +54,7 @@ const generateAcc = async ({ userName, email }) => {
     console.log(" account number generated for the new user");
   } catch (error) {
     console.log(error);
+    console.log(error.response);
   }
 };
 module.exports = generateAcc;

@@ -59,8 +59,7 @@ const register = async (req, res) => {
   req.body.apiToken = randomToken.generate(30);
   try {
     await User.create({ ...req.body });
-    // generate account number
-    await generateAcc({ userName, email });
+
     const user = await User.findOne({ email });
     const token = user.createJWT();
     const allDataList = await Data.find();
@@ -119,6 +118,8 @@ const register = async (req, res) => {
         NETWORK: network,
       },
     });
+    // generate account number
+    await generateAcc({ userName, email });
     // if (referredBy) newReferral(req.body);
     if (referredBy) {
       addReferral({ userName, sponsorId: referredBy });
@@ -142,9 +143,6 @@ const login = async (req, res) => {
   const isPasswordCorrect = await user.comparePassword(password);
   if (!isPasswordCorrect)
     return res.status(400).json({ msg: "Incorrect password" });
-  // generate account number
-  if (user.accountNumbers.length < 1)
-    await generateAcc({ userName, email: user.email });
 
   const token = user.createJWT();
   const isReseller = user.userType === "reseller";
@@ -216,7 +214,7 @@ const login = async (req, res) => {
     user.apiToken === generatedRandomToken;
   }
 
-  return res.status(200).json({
+  res.status(200).json({
     token: token,
     // user: {
     //   userName: user.userName,
@@ -248,6 +246,9 @@ const login = async (req, res) => {
       NETWORK: network,
     },
   });
+  // generate account number
+  if (user.accountNumbers.length < 1)
+    await generateAcc({ userName, email: user.email });
 };
 
 const userData = async (req, res) => {
