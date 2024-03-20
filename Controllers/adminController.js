@@ -41,7 +41,7 @@ const generateCoupon = async (req, res) => {
     length: 10,
   });
   if (!userAccount || !amount)
-    return res.status(400).json({ msg: "All feilds are required" });
+    return res.status(400).json({ msg: "All fields are required" });
   let user = await User.find({ userName: userAccount });
   if (!user) user = await User.find({ email: userAccount });
   if (user.length < 1)
