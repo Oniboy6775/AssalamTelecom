@@ -53,8 +53,8 @@ export default function App() {
       <Routes>
         <Route exact path="/" element={<Landing />} />
         <Route exact path="/login" element={<Login />} />
+        <Route path="Privacy-Policy" element={<Privacy2 />} />
         <Route exact path="/register">
-          <Route path="Privacy-Policy" element={<Privacy2 />} />
           <Route index element={<Register />} />
           <Route path=":referralId" element={<Register />} />
         </Route>
