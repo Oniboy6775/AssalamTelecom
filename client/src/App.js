@@ -35,6 +35,7 @@ import Withdraw from "./pages/Withdraw";
 import Contacts from "./pages/Contacts";
 import MyEarnings from "./pages/MyEarnings";
 import SmallNav from "./components/SmallNav";
+import Privacy2 from "./pages/Privacy2";
 
 export default function App() {
   const { token, checkLoggedIn, isLoading } = useGlobalContext();
@@ -53,6 +54,7 @@ export default function App() {
         <Route exact path="/" element={<Landing />} />
         <Route exact path="/login" element={<Login />} />
         <Route exact path="/register">
+          <Route path="Privacy-Policy" element={<Privacy2 />} />
           <Route index element={<Register />} />
           <Route path=":referralId" element={<Register />} />
         </Route>
