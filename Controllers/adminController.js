@@ -245,28 +245,64 @@ const updatePrice = async (req, res) => {
     newPrice: { price, reseller, api, partner },
     dataId,
   } = req.body;
-  let newUpdate = {};
-  if (price) {
-    newUpdate.my_price = price;
-  }
-  if (reseller) {
-    newUpdate.resellerPrice = reseller;
-  }
-  if (partner) {
-    newUpdate.partnerPrice = partner;
-  }
-  if (api) {
-    newUpdate.apiPrice = api;
-  }
-  try {
-    const isUpdated = await dataModel.updateOne(
-      { _id: dataId },
-      { $set: newUpdate }
-    );
-    console.log(isUpdated);
-    res.status(200).json({ msg: "Price updated successfully" });
-  } catch (e) {
-    res.status(500).json({ msg: "An error occur" });
+  const { volumeRatio, plan_network, plan_type } = await dataModel.findOne({
+    _id: dataId,
+  });
+  if (volumeRatio == 1) {
+    let dataList = await dataModel.find({
+      plan_network,
+      plan_type,
+      volumeRatio: { $gte: 0.9 },
+    });
+    for (let i = 0; i < dataList.length; i++) {
+      const currentItem = dataList[i];
+      console.log(currentItem);
+      const isUpdated = await dataModel.updateOne(
+        { id: currentItem.id },
+        {
+          $set: {
+            my_price: price
+              ? currentItem.volumeRatio * price
+              : currentItem.my_price,
+            resellerPrice: reseller
+              ? currentItem.volumeRatio * reseller
+              : currentItem.resellerPrice,
+            apiPrice: api
+              ? currentItem.volumeRatio * api
+              : currentItem.apiPrice,
+            partnerPrice: partner
+              ? currentItem.volumeRatio * partner
+              : currentItem.partnerPrice,
+          },
+        }
+      );
+      console.log({ isUpdated });
+    }
+    return res.status(200).json({ msg: "All Prices updated successfully" });
+  } else {
+    let newUpdate = {};
+    if (price) {
+      newUpdate.my_price = price;
+    }
+    if (reseller) {
+      newUpdate.resellerPrice = reseller;
+    }
+    if (partner) {
+      newUpdate.partnerPrice = partner;
+    }
+    if (api) {
+      newUpdate.apiPrice = api;
+    }
+    try {
+      const isUpdated = await dataModel.updateOne(
+        { _id: dataId },
+        { $set: newUpdate }
+      );
+      console.log(isUpdated);
+      res.status(200).json({ msg: "Price updated successfully" });
+    } catch (e) {
+      res.status(500).json({ msg: "An error occur" });
+    }
   }
 };
 const updateCostPrice = async (req, res) => {
