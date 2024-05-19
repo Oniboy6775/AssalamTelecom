@@ -89,7 +89,7 @@ userSchema.methods.createJWT = function () {
     },
     process.env.JWT_SECRET,
     {
-      expiresIn: "10 minutes",
+      expiresIn: "30 minutes",
     }
   );
 };
