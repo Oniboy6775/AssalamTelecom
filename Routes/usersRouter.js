@@ -23,6 +23,7 @@ const {
   upgradeToPartner,
   fetchReferral,
   withdrawEarning,
+  updateKyc,
 } = require("../Controllers/userControllers");
 const auth = require("../Middleware/auth");
 const router = express.Router();
@@ -49,5 +50,6 @@ router.post("/changePassword", auth, changePassword);
 router.get("/validateUser/:userName", auth, validateUser);
 router.post("/updateWebhook", auth, updateWebhookUrl);
 router.post("/upgradeToPartner", auth, upgradeToPartner);
+router.post("/updateKyc", auth, updateKyc);
 
 module.exports = router;

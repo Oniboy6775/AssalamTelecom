@@ -15,9 +15,10 @@ import { useGlobalContext } from "../context/UserContext";
 import WarningAlert from "../components/WarningAlert";
 import { FaWhatsapp } from "react-icons/fa";
 import { Modal } from "../components/Modal";
+import KYCModals from "../Modals/KYCModal";
 
 const DashBoard = () => {
-  const { user, generateVpayAcc } = useGlobalContext();
+  const { user, isLoading } = useGlobalContext();
   const navigate = useNavigate();
 
   const copyReferralLink = async () => {
@@ -35,13 +36,13 @@ const DashBoard = () => {
 
   const [showAlert, setShowAlert] = useState(false);
   useEffect(() => {
-    if (user.userType === "smart earner") {
-      const time = Math.random() * 7000;
-      setTimeout(() => {
-        setShowAlert(true);
-      }, [time]);
+    if (!isLoading && !user.nin && !user.bvn) {
+      setKycModal(true);
+    } else {
+      setKycModal(false);
     }
-  }, []);
+  }, [isLoading, user.nin, user.bvn]);
+  const [kycModal, setKycModal] = useState(false);
 
   const navigation = [
     { name: "Airtime", image: airtime, link: "/profile/buyAirtime" },
@@ -68,18 +69,33 @@ const DashBoard = () => {
   return (
     <div className=" md:ml-[6rem] bg-[var(--grey-200)] p-4">
       {showAlert && <WarningAlert close={() => setShowAlert(false)} />}
-
-      <p className=" text-lg font-bold text-center">
-        Welcome back, {user.userName && user.userName.substring(0, 10)}
-      </p>
-
-      <div className="flex justify-between px-4 md:pl-20 mb-2">
-        <div className="text-xl font-bold md:font-extrabold  ">
-          ₦{user.balance.toFixed(2)}
+      <div className="flex justify-between items-center my-4 space-x-4">
+        <div className="">
+          <p className=" text-lg font-bold text-center capitalize">
+            {user.userName && user.userName.substring(0, 15)}
+          </p>
+          <small className="font-bold">
+            {" "}
+            {user.userName && `₦${user.balance.toFixed(2)}`}
+          </small>
         </div>
-        <a href="#fundWallet" className="btn text-xs">
-          fund your wallet
-        </a>
+        <div className="grid gap-1">
+          <button
+            onClick={() => (window.location.href = "#fundWallet")}
+            className="btn text-xs"
+          >
+            fund your wallet
+          </button>
+          {!user.bvn && !user.nin && (
+            <button
+              className="btn btn-danger"
+              onClick={() => setKycModal(true)}
+            >
+              update kyc
+            </button>
+          )}
+          {kycModal && <KYCModals close={() => setKycModal(!kycModal)} />}
+        </div>
       </div>
       {/* navigation__section */}
       <section className="flex flex-wrap m-auto justify-center items-stretch gap-4 cursor-pointer ">

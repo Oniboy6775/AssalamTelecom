@@ -144,4 +144,7 @@ export const initialState = {
   selectedDataType: "",
   suppliers: [],
   costPrices: [],
+  // KYC DETAILS
+  verificationMethod: "nin",
+  verificationNo: "",
 };

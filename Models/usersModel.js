@@ -59,6 +59,9 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  fullName: { type: String, default: "" },
+  bvn: { type: String, default: "" },
+  nin: { type: String, default: "" },
 });
 
 userSchema.pre("save", async function () {
