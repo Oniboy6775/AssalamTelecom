@@ -15,6 +15,7 @@ const {
   updateNotification,
   upgradeUser,
   approveWithdrawal,
+  resetUserPassword,
 } = require("../Controllers/adminController");
 const isAdmin = require("../Middleware/isAdmin");
 
@@ -32,5 +33,6 @@ router.post("/refund/:id", auth, refund);
 router.get("/notification", auth, getNotification);
 router.post("/notification", auth, updateNotification);
 router.post("/approveWithdrawal", auth, isAdmin, approveWithdrawal);
+router.post("/resetUserPassword", auth, isAdmin, resetUserPassword);
 
 module.exports = router;

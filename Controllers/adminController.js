@@ -12,6 +12,8 @@ const dataModel = require("../Models/dataModel");
 const notification = require("../Models/notification");
 const CostPrice = require("../Models/costPriceModel");
 const { reverseReferralBonus } = require("../Utils/referralBonus");
+const bcrypt = require("bcrypt");
+
 const adminDetails = async (req, res) => {
   if (req.user.userId !== process.env.ADMIN_ID)
     return res.status(401).json({
@@ -389,6 +391,22 @@ const approveWithdrawal = async (req, res) => {
     res.status(500).json({ msg: "something went wrong" });
   }
 };
+const resetUserPassword = async (req, res) => {
+  const { userId } = req.body;
+  try {
+    const salt = await bcrypt.genSalt(10);
+    const newPassword = "12345678";
+    const hashedPwd = await bcrypt.hash(newPassword, salt);
+    const { userName } = await User.findOne({ _id: userId });
+    await User.updateOne({ _id: userId }, { $set: { password: hashedPwd } });
+    res
+      .status(200)
+      .json({ msg: `${userName}'s password has been reset successfully` });
+  } catch (e) {
+    console.log(e);
+    return res.status(500).json({ msg: "something went wrong" });
+  }
+};
 module.exports = {
   adminDetails,
   generateCoupon,
@@ -403,4 +421,5 @@ module.exports = {
   getNotification,
   upgradeUser,
   approveWithdrawal,
+  resetUserPassword,
 };

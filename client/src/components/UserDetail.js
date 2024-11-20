@@ -1,6 +1,7 @@
 import React from "react";
 import moment from "moment";
 import styled from "styled-components";
+import { useGlobalContext } from "../context/UserContext";
 
 const UserDetails = ({
   close,
@@ -8,12 +9,7 @@ const UserDetails = ({
   _id,
   balance,
   createdAt,
-  reservedAccountBank,
-  reservedAccountBank2,
-  reservedAccountBank3,
-  reservedAccountNo,
-  reservedAccountNo2,
-  reservedAccountNo3,
+
   phoneNumber,
   userType,
   lastLogin,
@@ -24,6 +20,7 @@ const UserDetails = ({
   referredBy,
   accountNumbers,
 }) => {
+  const { resetUserPassword } = useGlobalContext();
   return (
     <div className=" bg-black/50 flex m-auto h-full fixed left-0 right-0 top-0 bottom-0 z-10">
       <div
@@ -72,6 +69,12 @@ const UserDetails = ({
           >
             Upgrade user
           </button>
+          <button
+            className="btn m-1 btn-danger"
+            onClick={() => resetUserPassword(_id)}
+          >
+            Reset password
+          </button>{" "}
           <button className="btn m-1 btn-danger">Delete User</button>
           <button onClick={close} className="btn m-1 btn-danger">
             close
