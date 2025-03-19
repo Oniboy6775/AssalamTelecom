@@ -41,15 +41,6 @@ const userSchema = new mongoose.Schema({
     enum: ["smart earner", "reseller", "api user"],
   },
   balance: { type: Number, default: 0 },
-  // partner related fields
-  earningBalance: { type: Number },
-  isPartner: { type: Boolean, default: false },
-  withdrawalDetails: {
-    bank: "",
-    bankCode: "",
-    accountNumber: "",
-    nameOnAccount: "",
-  },
   createdAt: {
     type: Date,
     default: Date.now,
@@ -92,7 +83,7 @@ userSchema.methods.createJWT = function () {
     },
     process.env.JWT_SECRET,
     {
-      expiresIn: "30 minutes",
+      expiresIn: "1d",
     }
   );
 };

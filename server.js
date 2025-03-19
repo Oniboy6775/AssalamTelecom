@@ -1,5 +1,6 @@
 const express = require("express");
 const app = express();
+const jwt = require("jsonwebtoken");
 
 const ConnectDB = require("./Controllers/ConnectB");
 const auth = require("./Middleware/auth");
@@ -17,6 +18,7 @@ const fundWalletRouter = require("./Routes/fundWalletRouter");
 const adminRouter = require("./Routes/adminRouter");
 const transactionRoute = require("./Routes/transactionsRouter");
 const webhookRoute = require("./Routes/webhookRoutes");
+// const dataPlanRoutes = require("./Routes/dataPlanRoutes");
 
 // extra security packages
 const helmet = require("helmet");
@@ -45,11 +47,35 @@ app.use(express.json());
 app.use(helmet());
 app.use(xss());
 
-app.get("/api/v1/prices", async (req, res) => {
+app.all("/api/v1/prices", async (req, res) => {
+  const { network } = req.body;
+  const token = req.header("x-auth-token");
+  let isAdmin = false;
+  if (token) {
+    try {
+      const verified = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = verified;
+      isAdmin = req.user.userId === process.env.ADMIN_ID;
+    } catch {
+      return res
+        .status(401)
+        .json({ msg: "Token verification failed, authorization denied" });
+    }
+  }
   try {
-    const dataList = await DataModel.find();
+    let queryObj = {};
+    if (network) {
+      queryObj.plan_network = network;
+    }
+    let dataList = DataModel.find(queryObj);
+    if (!isAdmin)
+      dataList.select(
+        "-planCostPrice -volumeRatio -partnerPrice -planSupplier"
+      );
+    dataList = await dataList;
     return res.status(200).json(dataList);
   } catch (e) {
+    console.log(e);
     return res.status(500).json({ msg: "An error occur" });
   }
 });
@@ -64,6 +90,7 @@ app.use("/api/v1/fundWallet", fundWalletRouter);
 app.use("/api/v1/admin", adminRouter);
 app.use("/api/v1/transaction", auth, transactionRoute);
 app.use("/api/v1/webhook", webhookRoute);
+// app.use("/api/v1/dataPlan", dataPlanRoutes);
 
 app.use("/api/v1/*", (req, res) => {
   console.log(req.body);
