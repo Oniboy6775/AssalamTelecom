@@ -29,6 +29,8 @@ const { MTN_CG, MTN_SME } = require("../API_DATA/newData");
 const generateAcc = require("../Utils/accountNumbers");
 const { addReferral } = require("../Utils/referralBonus");
 const { default: axios } = require("axios");
+const generateBillStackAcc = require("../Utils/generateBillStackAcc");
+
 const register = async (req, res) => {
   let { email, password, passwordCheck, userName, referredBy, phoneNumber } =
     req.body;
