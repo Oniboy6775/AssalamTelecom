@@ -1,12 +1,18 @@
-import React, { useState } from "react";
+import React, { useEffect, useLayoutEffect, useState } from "react";
 import FormRowSelect from "../components/FormRowSelect";
 import FormInput from "../components/FormInput";
 
 import { toast } from "react-toastify";
 import { AiOutlineLoading3Quarters } from "react-icons/ai";
 import { useGlobalContext } from "../context/UserContext";
-import { RiContactsBook2Fill } from "react-icons/ri";
+import { RiContactsBook2Fill, RiMoonCloudyLine } from "react-icons/ri";
 import SelectContactModal from "../components/SelectContactModal";
+import { Modal } from "../components/Modal";
+import mtn from "../images/MTN.png";
+import glo from "../images/glo.png";
+import airtel from "../images/airtel.png";
+import Nmobile from "../images/9mobile.png";
+import BuyDataModal from "../components/BuyDataModal";
 function BuyData() {
   const {
     networkList,
@@ -18,134 +24,155 @@ function BuyData() {
     filteredDataOptions,
     isLoading,
     loadingText,
-    selectedDataObj,
     contactName,
     dataTypeOptions,
     selectedDataType,
+    networkStatus,
+    isCheckingNetworkStatus,
+    checkNetworkStatus,
+    testLoophole,
+    isAdmin,
+    fetchAvailablePlans,
+    availablePlans,
   } = useGlobalContext();
   const [addToContact, setAddToContact] = useState(false);
-  const handleInputChange = (e) => {
-    let name = e.target.name;
-    let value = e.target.value;
-    handleChange({ name, value });
-  };
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const splittedPlan = selectedNetwork.split(" ");
+
+  const handleSubmit = () => {
+    const { planId } = selectedDataObj;
     if (addToContact && !contactName)
       return toast.warning("Please enter a nickname for the number");
-    if (phoneNumber.length != 11)
-      return toast.warning("Please check the phone number entered");
-    if (!phoneNumber || splittedPlan[0] !== selectedNetwork) {
+
+    if (!phoneNumber || !selectedNetwork || !planId) {
       toast.warning("Please provide all values");
       return;
     }
-    buyData();
+    buyData({ planId, selectedNetwork, phoneNumber });
   };
-  const handleCheckBoxInput = (e) => {
-    if (e.target.checked) {
-      setAddToContact(true);
-      handleChange({ name: "contactNumber", value: phoneNumber });
-      handleChange({ name: "contactNetwork", value: selectedNetwork });
-    } else {
-      setAddToContact(false);
-      handleChange({ name: "contactName", value: "" });
-      handleChange({ name: "contactNumber", value: "" });
-      handleChange({ name: "contactNetwork", value: "" });
-    }
-  };
-  const [isSelectingContact, setIsSelectingContact] = useState(false);
+
+  const [isCheckingNetwork, setIsCheckingNetwork] = useState(false);
+  useLayoutEffect(() => {
+    handleChange({ name: "selectedNetwork", value: "select" });
+  }, []);
+  const availableNetworks = [
+    { name: "MTN", image: mtn },
+    { name: "GLO", image: glo },
+    { name: "AIRTEL", image: airtel },
+    { name: "9MOBILE", image: Nmobile },
+  ];
+  const [showModal, setShowModal] = useState(false);
+  const toggleConfirmationModal = () => setShowModal(!showModal);
+  const [selectedDataObj, setSelectedDataObj] = useState({});
+  useEffect(() => {
+    if (showModal) setShowModal(false);
+    fetchAvailablePlans();
+  }, [selectedNetwork]);
+  // console.log(availablePlans);
   return (
-    <div className=" md:ml-[6rem] bg-white p-4  ">
-      <h4 className="underline title">purchase DATA</h4>
+    <div className=" bg-white md:ml-[6rem]">
+      {showModal && (
+        <Modal
+          title="Confirmation"
+          children={<BuyDataModal />}
+          buttons={[
+            {
+              name: "buy now",
+              handleClick: () => {
+                toggleConfirmationModal();
+                handleSubmit();
+              },
+            },
+            {
+              name: "close",
+              handleClick: toggleConfirmationModal,
+              className: "btn-danger",
+            },
+          ]}
+        />
+      )}
+      <h2 className="title underline">Buy data</h2>
       <div className=" sm:flex sm:flex-row sm:gap-5 sm:pl-[80px] md:pl-0 gap-4 justify-evenly items-center">
-        {isSelectingContact && (
-          <SelectContactModal close={() => setIsSelectingContact(false)} />
-        )}
-        <form className="form" onSubmit={handleSubmit}>
-          <FormRowSelect
-            labelText="Select Network"
-            name="selectedNetwork"
-            value={selectedNetwork}
-            list={networkList}
-            handleChange={handleInputChange}
-          />
-          {selectedNetwork === "MTN" && (
-            <FormRowSelect
-              labelText="select data type"
-              name="selectedDataType"
-              value={selectedDataType}
-              list={isLoading ? [loadingText] : dataTypeOptions}
-              handleChange={handleInputChange}
-            />
-          )}
-
-          <FormRowSelect
-            labelText="select Plan"
-            name="selectedPlan"
-            value={selectedPlan}
-            list={isLoading ? [loadingText] : filteredDataOptions}
-            handleChange={handleInputChange}
-          />
-          <div className="flex justify-between w-full items-center">
-            <FormInput
-              type="number"
-              labelText="phone number"
-              name="phoneNumber"
-              value={phoneNumber}
-              handleChange={handleInputChange}
-            />
-            <div
-              className="btn mt-6"
-              onClick={() => setIsSelectingContact(!isSelectingContact)}
-            >
-              <RiContactsBook2Fill className="text-2xl" />
-            </div>
-          </div>
-          <div className="form-row">
-            <label htmlFor="" className="form-label mt-3">
-              <input
-                type="checkbox"
-                name="contact"
-                className="accent-slate-500 mr-2"
-                onChange={handleCheckBoxInput}
-              />
-              <span>Add number to contact list</span>
-            </label>
-          </div>
-          {addToContact && (
-            <FormInput
-              handleChange={handleInputChange}
-              type="text"
-              value={contactName}
-              name="contactName"
-              labelText="contact nickname"
-            />
-          )}
-          <div className="text-center">
-            <p>You will be charged</p>
-
-            <input
-              className="form-input-disabled"
-              disabled
-              readOnly
-              type="number"
-              value={selectedDataObj.plan_amount}
-              onChange={() => console.log("")}
-            />
-          </div>
-          <button disabled={isLoading} type="submit" className="btn btn-block">
-            {isLoading ? (
+        <div className="md:w-[80%] min-h-[20vh]">
+          <h2 className="text-center font-bold text-2xl normal-case">
+            Select a network{" "}
+          </h2>
+          <section className="flex gap-4 justify-center ">
+            {availableNetworks.map((e) => {
+              return (
+                <div
+                  className=""
+                  key={e.name}
+                  onClick={() =>
+                    handleChange({ name: "selectedNetwork", value: e.name })
+                  }
+                >
+                  <img
+                    src={e.image}
+                    className={`img object-cover  max-w-[70px] ${
+                      e.name == selectedNetwork
+                        ? "opacity-100  border-b-4  border-[var(--primary-300)]  "
+                        : "opacity-20"
+                    } hover:opacity-90 transition duration-300`}
+                  />
+                </div>
+              );
+            })}
+          </section>
+          {/* each plan */}
+          {isLoading ? (
+            <div className="loading"></div>
+          ) : (
+            selectedNetwork != "select" &&
+            availablePlans?.length > 0 && (
               <>
-                <AiOutlineLoading3Quarters className="animate-spin h-5 w-5 mr-3" />
-                {loadingText}
+                <h2 className="text-center font-bold text-2xl m-2 normal-case">
+                  Select a plan
+                </h2>
+                <div className="flex justify-center gap-2 flex-wrap ">
+                  {availablePlans
+                    .filter((e) => e.isAvailable)
+                    .map((e) => {
+                      return (
+                        <>
+                          <div
+                            className="p-2 border text-center w-[45%] font-bold text-lg "
+                            key={e.planId}
+                          >
+                            <div className="bg-[var(--primary-300)]">
+                              <p className="text-[var(--primary-600)]">
+                                {e.planType}
+                              </p>
+                            </div>
+                            <div className="div">
+                              <p>{e.planName}</p>
+                              <button
+                                className="btn"
+                                onClick={() => {
+                                  if (selectedNetwork == "select") {
+                                    toast("Please select a network");
+                                    return;
+                                  }
+                                  setSelectedDataObj(e);
+                                  toggleConfirmationModal();
+                                }}
+                              >
+                                Buy
+                              </button>
+                              <p className="text-green-600">₦{e.planAmount}</p>
+                            </div>
+                            <div className="bg-[var(--primary-600)] text-white">
+                              <p>{e.planValidity}</p>
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })}
+                </div>
               </>
-            ) : (
-              "buy now"
-            )}
-          </button>
-        </form>
-        <div className=" w-11/12 pt-4 m-auto">
+            )
+          )}
+        </div>
+
+        <div className=" w-11/12 pt-4 m-auto self-baseline">
           <div className="">
             <p className="text-center font-semibold text-lg  underline">
               Balance checking codes

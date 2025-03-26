@@ -49,6 +49,7 @@ const {
   FETCH_REFERRAL_LIST_SUCCESS,
   CHANGE_DATA_TYPE_OPTION,
   FETCH_COST_AND_SUPPLIER_SUCCESS,
+  FETCH_AVAILABLE_PLANS,
 } = require("./actions");
 
 const AppContext = React.createContext();
@@ -257,12 +258,11 @@ export const AppProvider = ({ children }) => {
     }
   };
   // SERVICES PURCHASE
-  const buyData = async () => {
-    const { phoneNumber, selectedPlan, selectedNetwork, dataSubScriptions } =
-      state;
-    if (!selectedPlan) return toast("Select a plan");
-    const splittedPlan = selectedPlan.split(" ");
-    // const amountToCharge = splittedPlan[2].split("₦")[1];
+  const buyData = async ({ phoneNumber, planId, selectedNetwork }) => {
+    if (!selectedNetwork || selectedNetwork == "select") {
+      toast.warning("Please select a network");
+      return;
+    }
     dispatch({ type: START_LOADING, payload: "buying data..." });
     let networkId;
     if (selectedNetwork === "MTN") networkId = "1";
@@ -270,24 +270,13 @@ export const AppProvider = ({ children }) => {
     if (selectedNetwork === "GLO") networkId = "2";
     if (selectedNetwork === "9MOBILE") networkId = "6";
 
-    const chosenPlan = dataSubScriptions.find((e) => {
-      let dataVolume = splittedPlan[1];
-      let dataType = splittedPlan[splittedPlan.length - 1];
-
-      return (
-        e.plan === dataVolume &&
-        e.plan_type === dataType &&
-        e.plan_network === selectedNetwork
-      );
-    });
-    const { id } = chosenPlan;
     dispatch({ type: START_LOADING, payload: "Buying data..." });
     // console.log(chosenPlan);
     try {
       const { data } = await authFetch.post("/buy/data", {
         network: networkId,
         mobile_number: phoneNumber,
-        plan: id,
+        plan: planId,
       });
       if (state.contactName) addContact({ contactId: "" });
       dispatch({
@@ -1064,7 +1053,7 @@ export const AppProvider = ({ children }) => {
       const { data } = await authFetch.post("/auth/updateKyc", payload);
       toast(data.msg);
       dispatch({ type: STOP_LOADING });
-      checkLoggedIn();
+      fetchTransaction();
     } catch (e) {
       toast.error(e.response.data.msg);
       dispatch({ type: STOP_LOADING });
@@ -1077,9 +1066,87 @@ export const AppProvider = ({ children }) => {
         userId,
       });
       toast(data.msg);
+      fetchUser();
       dispatch({ type: STOP_LOADING });
     } catch (e) {
       toast.error(e.response.data.msg);
+      dispatch({ type: STOP_LOADING });
+    }
+  };
+  const fetchAvailablePlans = async () => {
+    const { selectedNetwork, user } = state;
+    if (!selectedNetwork) return toast("Select a network");
+    try {
+      dispatch({ type: START_LOADING });
+      const { data } = await authFetch.post("/prices", {
+        network: selectedNetwork,
+      });
+      const fetchPlans = data
+        .map((e) => {
+          const validityNumber = parseInt(e.month_validate.split(" ")[0]);
+          return {
+            ...e,
+            validityNumber,
+          };
+        })
+        .sort((a, b) => {
+          // First, sort by validity
+          if (a.validityNumber !== b.validityNumber) {
+            return a.validityNumber - b.validityNumber;
+          }
+          // If validity is the same, sort by id
+          return a.id - b.id;
+        })
+        .map((e) => {
+          let selectedPrice = e.my_price;
+          if (user.userType == "reseller") selectedPrice = e.resellerPrice;
+          if (user.userType == "api user") selectedPrice = e.apiPrice;
+          return {
+            ...e,
+            resellerPrice: e.resellerPrice,
+            apiPrice: e.apiPrice,
+            smartEarnerPrice: e.my_price,
+            planCostPrice: e.planCostPrice,
+            planId: e.id,
+            planAmount: selectedPrice,
+            planType: e.plan_type,
+            planName: e.plan,
+            // planValidity: e.month_validate.split(" ").slice(0, 2),
+            planValidity: e.month_validate.split(" ").slice(0, 2).join(" "), // Format validity (e.g., "1 Day")            planAmount: selectedPrice,
+          };
+        });
+      dispatch({ type: FETCH_AVAILABLE_PLANS, payload: fetchPlans });
+      dispatch({ type: STOP_LOADING });
+    } catch (error) {
+      toast.error(error.response.data.msg);
+      dispatch({ type: STOP_LOADING });
+    }
+  };
+  const setUpPlan = async ({ action, payload }) => {
+    const { selectedNetwork, user } = state;
+    // console.log(payload);
+    if (!selectedNetwork) return toast("Select a network");
+    try {
+      let endPoint =
+        action == "add"
+          ? "/add"
+          : action == "delete"
+          ? `/delete?planId=${payload._id}`
+          : "/update";
+      let method =
+        action === "add" ? "post" : action == "delete" ? "delete" : "patch";
+      dispatch({ type: START_LOADING });
+      const { data } = await authFetch({
+        method: method,
+        url: `/dataPlan${endPoint}`,
+        data: { ...payload }, // Request body
+      });
+
+      toast(data.msg);
+      fetchAvailablePlans();
+      dispatch({ type: STOP_LOADING });
+    } catch (error) {
+      toast.error(error.response.data.msg);
       dispatch({ type: STOP_LOADING });
     }
   };
@@ -1142,6 +1209,8 @@ export const AppProvider = ({ children }) => {
         getCostPriceAndSupplier,
         updateKyc,
         resetUserPassword,
+        fetchAvailablePlans,
+        setUpPlan,
       }}
     >
       {children}

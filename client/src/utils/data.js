@@ -68,6 +68,11 @@ export const sideBarButton = [
 ];
 export const adminSideBarButton = [
   {
+    name: "admin settings",
+    url: "/profile/adminSettings",
+    icon: <BiCreditCard />,
+  },
+  {
     name: "Update price",
     url: "/profile/updatePrice",
     icon: <BiCreditCard />,

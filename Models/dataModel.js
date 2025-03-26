@@ -11,7 +11,8 @@ const dataSchema = new mongoose.Schema({
   my_price: String,
   resellerPrice: String,
   apiPrice: String,
-  partnerPrice: String,
   volumeRatio: Number,
+  planCostPrice: { type: Number, default: 0 },
+  isAvailable: { type: Boolean, default: true },
 });
 module.exports = mongoose.model("data", dataSchema);

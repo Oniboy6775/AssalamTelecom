@@ -9,7 +9,7 @@ export const Modal = ({
 }) => {
   return (
     <div className="bg-black/50 fixed top-0 bottom-0 left-0 right-0 flex flex-col items-center justify-center z-50 ">
-      <div className=" bg-white p-4 rounded-lg w-10/12 max-w-[400px]">
+      <div className=" bg-white p-4 rounded-lg w-10/12 max-w-[400px] m-h-[65%]">
         <p className="uppercase text-center font-bold text-lg underline">
           {title}
         </p>
