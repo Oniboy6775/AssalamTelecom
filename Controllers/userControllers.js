@@ -62,7 +62,7 @@ const register = async (req, res) => {
   try {
     await User.create({ ...req.body });
     // generate account number
-    // await generateAcc({ userName, email });
+    await generateAcc({ userName, email });
     const user = await User.findOne({ email });
     generateBillStackAcc({ bankName: "palmpay", userId: user._id });
     generateBillStackAcc({ bankName: "9psb", userId: user._id });
@@ -144,8 +144,14 @@ const login = async (req, res) => {
   if (!isPasswordCorrect)
     return res.status(400).json({ msg: "Incorrect password" });
   // generate account number
-  if (user.accountNumbers.length < 1) {
+  const palmPayExist = user.accountNumbers.find((e) => e.bankName == "palmpay");
+  const NPayServiceBankExist = user.accountNumbers.find(
+    (e) => e.bankName == "9psb"
+  );
+  if (!palmPayExist) {
     await generateBillStackAcc({ bankName: "palmpay", userId: user._id });
+  }
+  if (!NPayServiceBankExist) {
     await generateBillStackAcc({ bankName: "9psb", userId: user._id });
   }
 

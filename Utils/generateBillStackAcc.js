@@ -26,7 +26,7 @@ const generateBillStackAcc = async ({ bankName, userId }) => {
     //   lastName: "abdullahi",
     //   bank: "PALMPAY",
     // };
-    console.log(payload);
+    // console.log(payload);
     const billStackAcc = await axios.post(
       BILLSTACK_API + "/generateVirtualAccount/",
       payload,
@@ -43,7 +43,7 @@ const generateBillStackAcc = async ({ bankName, userId }) => {
         bankName,
         accountNumber: accountDetails.account_number,
       };
-      console.log(accountInfo);
+      // console.log(accountInfo);
       await usersModel.updateOne(
         { _id: userId },
         {
