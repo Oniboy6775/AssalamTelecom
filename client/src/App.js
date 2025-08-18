@@ -30,6 +30,7 @@ import Loading from "./components/Loading";
 import WhatsAppIcon from "./components/WhatsAppIcon";
 import BuyElectricity from "./pages/BuyElectricity";
 import UpdatePrice from "./pages/UpdatePrice";
+import Privacy2 from "./pages/Privacy2";
 import CouponFunding from "./pages/CouponFunding";
 import Withdraw from "./pages/Withdraw";
 import Contacts from "./pages/Contacts";
@@ -60,6 +61,7 @@ export default function App() {
           <Route index element={<DashBoard />} />
           <Route path="buyData" element={<BuyData />} />
           <Route path="buyAirtime" element={<BuyAirtime />} />
+          <Route path="Privacy-Policy" element={<Privacy2 />} />
           <Route path="contacts" element={<Contacts />} />
           <Route path="earnings" element={<MyEarnings />} />
           <Route path="transactions" element={<Transactions />} />
