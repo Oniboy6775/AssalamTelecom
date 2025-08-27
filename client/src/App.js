@@ -6,6 +6,7 @@ import { useGlobalContext } from "./context/UserContext";
 import Landing from "./pages/Landing";
 
 // PAGES
+import Hello from "./pages/Hello";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/SharedLayout";
@@ -56,12 +57,14 @@ export default function App() {
         <Route exact path="/register">
           <Route index element={<Register />} />
           <Route path=":referralId" element={<Register />} />
+          <Route exact path="hello" element={<Hello />} />
         </Route>
         <Route exact path="/profile" element={token ? <Profile /> : <Login />}>
+        <Route path="privacy-policy" element={<Privacy2 />} />
           <Route index element={<DashBoard />} />
           <Route path="buyData" element={<BuyData />} />
           <Route path="buyAirtime" element={<BuyAirtime />} />
-          <Route path="Privacy-Policy" element={<Privacy2 />} />
+         
           <Route path="contacts" element={<Contacts />} />
           <Route path="earnings" element={<MyEarnings />} />
           <Route path="transactions" element={<Transactions />} />
@@ -76,6 +79,7 @@ export default function App() {
           <Route path="adminSettings" element={<UpdatePrice />} />
           <Route path="updatePrice" element={<UpdatePriceNew />} />{" "}
         </Route>
+        <Route path="/privacy-policy" element={<Privacy2 />} />
         {/* ADMIN */}
         <Route path="/admin" element={<Profile />}>
           <Route index element={<Admin />} />

@@ -52,7 +52,7 @@ const Privacy2 = () => {
           <p>
             <strong>Company</strong> (referred to as either &quot;the
             Company&quot;, &quot;We&quot;, &quot;Us&quot; or &quot;Our&quot; in
-            this Agreement) refers to SPP Data Depot.
+            this Agreement) refers to Assalam Telecom
           </p>
         </li>
         <li>
@@ -121,9 +121,7 @@ const Privacy2 = () => {
         <li>
           <p>Phone number</p>
         </li>
-        <li>
-          <p>Address, State, Province, ZIP/Postal code, City</p>
-        </li>
+        
         <li>
           <p>Usage Data</p>
         </li>
@@ -401,7 +399,7 @@ const Privacy2 = () => {
       <ul>
         <li>
           By email:{" "}
-          <a href="mailto:info@sppdatadepot.com.ng">info@sppdatadepot.com.ng</a>
+          <a href="mailto:info@assalamtelecom.com.ng">info@assalamtelecom.com.ng</a>
         </li>
       </ul>
     </div>
