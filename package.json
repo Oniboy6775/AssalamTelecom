@@ -4,11 +4,13 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "install-server": "npm install",
-    "start": "node server.js",
-    "server": "nodemon server.js",
-    "dev": "nodemon server.js"
-  },
+  "install-server": "npm install",
+  "start": "node server.js",
+  "server": "nodemon server.js",
+  "dev": "nodemon server.js",
+  "render-postbuild": "echo 'No client build step required'"
+},
+
   "author": "",
   "license": "ISC",
   "dependencies": {
