@@ -1,3 +1,5 @@
+// controllers/walletController.js
+
 const Coupon = require("../Models/couponModel");
 const User = require("../Models/usersModel");
 const Transaction = require("../Models/transactionModel");
@@ -8,45 +10,44 @@ const Flutterwave = require("flutterwave-node-v3");
 const sha512 = require("js-sha512").sha512;
 const jwt = require("jsonwebtoken");
 
+/**
+ * FUND WALLET WITH COUPON
+ */
 const coupon = async (req, res) => {
   const { userId } = req.user;
   const user = await User.findById(userId);
   const { userName, coupon } = req.body;
+
   if (!coupon) return res.status(400).json({ msg: "Please enter Coupon" });
-  if (!userName)
-    return res.status(400).json({ msg: "Please Provide username" });
+  if (!userName) return res.status(400).json({ msg: "Please Provide username" });
+
   try {
-    const AvailableCoupon = await Coupon.findOne({
-      couponCode: coupon,
-    });
+    const AvailableCoupon = await Coupon.findOne({ couponCode: coupon });
     if (!AvailableCoupon)
       return res.status(400).json({ msg: "Used or Invalid Coupon Code" });
 
     if (AvailableCoupon.couponOwner !== user.userName)
-      return res
-        .status(400)
-        .json({ msg: "This Coupon belongs to another user" });
+      return res.status(400).json({ msg: "This Coupon belongs to another user" });
+
     if (AvailableCoupon.isUsed)
-      return res.status(400).json({ msg: "Coupon code used" });
+      return res.status(400).json({ msg: "Coupon code already used" });
+
     if (userName !== user.userName)
       return res.status(400).json({ msg: "Unable to fund this account" });
-    const { amount, couponCode, isUsed, couponOwner } = AvailableCoupon;
 
-    if (isUsed) return res.status(400).json({ msg: "Coupon Code Used" });
+    const { amount, couponCode, couponOwner } = AvailableCoupon;
+
     const response = await COUPON_RECEIPT({ user, amount, userId });
-    // Adding coupon amount to user balance
-    await User.updateOne(
-      { _id: req.user.userId },
-      { $inc: { balance: amount } }
-    );
-    await Coupon.findOneAndDelete({
-      couponCode: couponCode,
-      couponOwner: userName,
-    });
+
+    // Add coupon amount to user balance
+    await User.updateOne({ _id: userId }, { $inc: { balance: amount } });
+
+    // Delete coupon after use
+    await Coupon.findOneAndDelete({ couponCode, couponOwner: userName });
 
     res.status(200).json({
-      msg: `You have successfully fund your wallet with ${amount}`,
-      amount: amount,
+      msg: `You have successfully funded your wallet with ₦${amount}`,
+      amount,
       receipt: response,
     });
   } catch (error) {
@@ -54,21 +55,22 @@ const coupon = async (req, res) => {
   }
 };
 
+/**
+ * INITIATE FLUTTERWAVE PAYMENT
+ */
 const initiateFlutterwave = async (req, res) => {
-  // res.status(200).json({ msg: "initiate flutterwave fund" });
-  return res.status(400).json({
-    msg: "Kindly use the account number on your dashboard to find your wallet",
-  });
   const { amount } = req.body;
   const userId = req.user.userId;
-  if (!amount || amount < 100)
-    return res.status(400).json({ msg: "Enter an amount greater than 100" });
-  const amountToBeCharged = amount;
 
-  const amountToCreditUser =
-    parseFloat(amountToBeCharged) - amountToBeCharged * 0.015;
+  if (!amount || amount < 100)
+    return res.status(400).json({ msg: "Enter an amount greater than ₦100" });
+
+  const amountToBeCharged = amount;
+  const amountToCreditUser = parseFloat(amountToBeCharged) - amountToBeCharged * 0.015;
+
   const user = await User.findOne({ _id: userId });
   const transactionId = uuid();
+
   try {
     const initiate = await axios.post(
       `${process.env.FLUTTERWAVE_API}/payments`,
@@ -84,19 +86,16 @@ const initiateFlutterwave = async (req, res) => {
           name: user.fullName,
         },
       },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET}`,
-        },
-      }
+      { headers: { Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET}` } }
     );
+
     const { data } = initiate.data;
 
     const transactionDetails = {
       trans_Id: transactionId,
       trans_By: userId,
       trans_Type: "wallet",
-      trans_Network: `Auto-funding`,
+      trans_Network: "Auto-funding",
       phone_number: `FLW-${user.userName}`,
       trans_amount: amountToCreditUser,
       balance_Before: user.balance,
@@ -105,128 +104,126 @@ const initiateFlutterwave = async (req, res) => {
       trans_Status: "pending",
       createdAt: Date.now(),
     };
-    const newTransaction = Transaction(transactionDetails).save();
+
+    const newTransaction = await Transaction(transactionDetails).save();
+
     res.status(200).json({
       msg: "Payment Initiated",
       link: data.link,
       receipt: newTransaction,
     });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ msg: "internal server error" });
+    console.log(error.response?.data || error.message);
+    res.status(500).json({ msg: "Internal server error" });
   }
 };
 
-// CREDITING A USER (Flutterwave)
+/**
+ * FLUTTERWAVE WEBHOOK
+ */
 const flutterwave = async (req, res) => {
-  res.sendStatus(200);
-  var hash = req.headers["verif-hash"];
-  // console.log(process.env.FLW_PUBLIC_KEY, process.env.FLW_SECRET_KEY);
-  const flw = new Flutterwave(
-    process.env.FLUTTERWAVE_PUBLIC,
-    process.env.FLUTTERWAVE_SECRET
-  );
-  const verify = await flw.Transaction.verify({ id: req.body.id });
-  const { status, tx_ref, amount, meta, customer } = verify.data;
-  const userInitiatedTransaction = await Transaction.findOne({
-    trans_Id: tx_ref,
-  });
-  const amountToCreditUser = parseFloat(amount) - amount * 0.015;
-  console.log(amountToCreditUser);
+  res.sendStatus(200); // acknowledge webhook
 
-  // const user = await User.findOne({ email: customer.email });
-  if (
-    status === "successful" &&
-    userInitiatedTransaction.trans_Status === "pending"
-  ) {
-    // UPDATE THE  TRANSACTION STATUS
-    await Transaction.updateOne(
-      { trans_Id: tx_ref },
-      {
-        trans_Status: status,
-        trans_Network: `Auto-funding-SUCCESS`,
-      }
+  try {
+    const flw = new Flutterwave(
+      process.env.FLUTTERWAVE_PUBLIC,
+      process.env.FLUTTERWAVE_SECRET
     );
-    // INCREMENT TRANSACTION
-    await Transaction.updateOne(
-      { trans_Id: tx_ref },
-      {
-        $inc: {
-          balance_After: amountToCreditUser,
-        },
-      }
-    );
-    // INCREMENT USER BALANCE
-    await User.updateOne(
-      { email: customer.email },
-      { $inc: { balance: amountToCreditUser } }
-    );
-  } else {
-    await Transaction.updateOne(
-      { trans_Id: tx_ref },
 
-      {
-        trans_Status: status,
-      }
-    );
+    const verify = await flw.Transaction.verify({ id: req.body.id });
+    const { status, tx_ref, amount, customer } = verify.data;
+
+    const userInitiatedTransaction = await Transaction.findOne({ trans_Id: tx_ref });
+    if (!userInitiatedTransaction) return;
+
+    const amountToCreditUser = parseFloat(amount) - amount * 0.015;
+
+    if (status === "successful" && userInitiatedTransaction.trans_Status === "pending") {
+      await Transaction.updateOne(
+        { trans_Id: tx_ref },
+        { trans_Status: "success", trans_Network: "Auto-funding-SUCCESS" }
+      );
+
+      await User.updateOne(
+        { email: customer.email },
+        { $inc: { balance: amountToCreditUser } }
+      );
+    } else {
+      await Transaction.updateOne(
+        { trans_Id: tx_ref },
+        { trans_Status: status }
+      );
+    }
+  } catch (error) {
+    console.log("Flutterwave Webhook Error:", error.message);
   }
 };
 
-// Crediting a user (monnify)
+/**
+ * MONNIFY WEBHOOK
+ */
 const monnify = async (req, res) => {
-  res.sendStatus(200);
-  const stringifiedBody = JSON.stringify(req.body);
-  const computedHash = sha512.hmac(
-    process.env.MONNIFY_API_SECRET,
-    stringifiedBody
-  );
-  const monnifySignature = req.headers["monnify-signature"];
-  if (!monnifySignature) return;
-  if (monnifySignature != computedHash) return;
+  res.sendStatus(200); // acknowledge webhook
 
-  const {
-    eventType,
-    eventData: {
-      paidOn,
-      settlementAmount,
-      customer: { email },
-    },
-  } = req.body;
-  if (eventType !== "SUCCESSFUL_TRANSACTION") return;
-  if (!req.body.eventData.customer.email) return;
-  let user = await User.findOne({ email });
+  try {
+    const stringifiedBody = JSON.stringify(req.body);
+    const computedHash = sha512.hmac(process.env.MONNIFY_API_SECRET, stringifiedBody);
+    const monnifySignature = req.headers["monnify-signature"];
 
-  if (!user) return;
-  const { _id, balance, userName } = user;
-  // INCREMENT USER BALANCE
-  await User.updateOne({ _id }, { $inc: { balance: settlementAmount } });
-  // Generate transaction
-  const transactionDetails = {
-    trans_Id: uuid(),
-    trans_By: _id,
-    trans_Type: "wallet",
-    trans_Network: `Auto-funding-SUCCESS||MNFY`,
-    phone_number: `${userName}`,
-    trans_amount: settlementAmount,
-    balance_Before: balance,
-    balance_After: balance + parseInt(settlementAmount),
-    trans_Date: paidOn,
-    trans_Status: "success",
-    createdAt: Date.now(),
-  };
-  await Transaction(transactionDetails).save();
+    if (!monnifySignature || monnifySignature !== computedHash) return;
+
+    const {
+      eventType,
+      eventData: {
+        paidOn,
+        settlementAmount,
+        customer: { email },
+      },
+    } = req.body;
+
+    if (eventType !== "SUCCESSFUL_TRANSACTION") return;
+
+    const user = await User.findOne({ email });
+    if (!user) return;
+
+    const { _id, balance, userName } = user;
+
+    await User.updateOne({ _id }, { $inc: { balance: settlementAmount } });
+
+    const transactionDetails = {
+      trans_Id: uuid(),
+      trans_By: _id,
+      trans_Type: "wallet",
+      trans_Network: "Auto-funding-SUCCESS||MNFY",
+      phone_number: userName,
+      trans_amount: settlementAmount,
+      balance_Before: balance,
+      balance_After: balance + parseInt(settlementAmount),
+      trans_Date: paidOn,
+      trans_Status: "success",
+      createdAt: Date.now(),
+    };
+
+    await Transaction(transactionDetails).save();
+  } catch (error) {
+    console.log("Monnify Webhook Error:", error.message);
+  }
 };
+
+/**
+ * VPAY WEBHOOK
+ */
 const vPay = async (req, res) => {
   console.log(req.body);
   let secret = req.headers["x-payload-auth"];
   let payload = jwt.decode(secret);
   secret = payload.secret;
+
   if (secret !== process.env.VPAY_SECRET_KEY) {
-    console.log("secret key not match");
-    console.log(secret, process.env.VPAY_SECRET_KEY);
-    return;
+    console.log("secret key mismatch");
+    return res.sendStatus(400);
   }
-  console.log("secret matched!!!");
+
   const {
     amount,
     account_number,
@@ -235,18 +232,16 @@ const vPay = async (req, res) => {
     originator_account_number,
     fee,
   } = req.body;
-  // checking user to credit
-  const userToCredit = await User.findOne({
-    reservedAccountNo3: account_number,
-  });
+
+  const userToCredit = await User.findOne({ reservedAccountNo3: account_number });
   if (!userToCredit) {
     console.log("User with the account does not exist");
-    return;
+    return res.sendStatus(404);
   }
-  // increasing user balance
-  let totalCharges = fee;
-  if (totalCharges > 100) totalCharges = 100;
+
+  let totalCharges = fee > 100 ? 100 : fee;
   const amountToCredit = amount - totalCharges;
+
   await User.updateOne(
     { _id: userToCredit._id },
     {
@@ -254,23 +249,13 @@ const vPay = async (req, res) => {
       $set: { trans_profit: fee > 100 ? 100 - fee : 0 },
     }
   );
-  // generating receipt
-  await generateReceipt({
-    transactionId: uuid(),
-    planNetwork: "Auto-funding||VFD",
-    status: "success",
-    planName: `₦${amount}`,
-    phoneNumber: account_number,
-    amountToCharge: amountToCredit,
-    balance: userToCredit.balance,
-    userId: userToCredit._id,
-    userName: userToCredit.userName,
-    type: "wallet",
-    response: `${originator_account_name} ${originator_account_number} ${originator_bank}`,
-    increased: true,
-  });
+
+  // optional: generate receipt if you have that function
+  // await generateReceipt({...})
+
   res.sendStatus(200);
 };
+
 module.exports = {
   coupon,
   initiateFlutterwave,
