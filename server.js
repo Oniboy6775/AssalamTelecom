@@ -33,7 +33,7 @@ const YAML = require("yamljs");
 
 const PORT = process.env.PORT || 5000;
 // Middleware
-app.use(cors());
+
 
 require("dotenv").config();
 app.set("trust proxy", 1);
