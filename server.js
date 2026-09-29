@@ -92,7 +92,7 @@ app.use("/api/v1/transaction", auth, transactionRoute);
 app.use("/api/v1/webhook", webhookRoute);
 app.use("/api/v1/dataPlan", dataPlanRoutes);
 app.use(cors({
-  origin: "https://www.assalamtelecom.com.ng/",   // <-- your deployed frontend URL
+  origin: "https://localhost:3000",   // <-- your deployed frontend URL
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
 }));
