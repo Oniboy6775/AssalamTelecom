@@ -49,10 +49,10 @@ const addPlan = async (req, res) => {
       planAvailability,
       planVolumeRatio,
     } = req.body;
-    const networkNumber = { MTN: 1, GLO: 2, AIRTEL: 3, "9MOBILE": 4 };
+    const networkNumber = { MTN: 1, GLO: 2, AIRTEL: 3, "9MOBILE": 6 };
     await dataModel.create({
       id: planId,
-      dataplan_id: toString(planId),
+      dataplan_id: String(planId),
       network: networkNumber[planNetwork],
       plan_network: planNetwork,
       plan_type: planType,
@@ -123,13 +123,13 @@ const updatePlan = async (req, res) => {
       planAvailability,
       planVolumeRatio,
     } = req.body;
-    const networkNumber = { MTN: 1, GLO: 2, AIRTEL: 3, "9MOBILE": 4 };
+    const networkNumber = { MTN: 1, GLO: 2, AIRTEL: 3, "9MOBILE": 6 };
     await dataModel.findOneAndUpdate(
       { _id },
       {
         $set: {
           id: planId,
-          dataplan_id: planId,
+          dataplan_id: String(planId),
           network: networkNumber[planNetwork],
           plan_network: planNetwork,
           plan_type: planType,
