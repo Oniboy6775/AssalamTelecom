@@ -65,13 +65,13 @@ const searchTransaction = async (req, res) => {
   // Calculating total GB purchased
   const today = await Transaction.find({ ...queryObject, ...query });
   const totalSales = today.reduce((acc, cur) => {
-    acc += cur.trans_volume_ratio;
+    acc += Number(cur.trans_volume_ratio) || 0;
     return acc;
   }, 0);
 
   // Calculating profit for selected transactions
   const totalProfit = today.reduce((acc, cur) => {
-    const currentProfit = isNaN(cur.trans_profit) ? 0 : cur.trans_profit;
+    const currentProfit = Number(cur.trans_profit) || 0;
     acc += currentProfit;
     return acc;
   }, 0);
@@ -90,13 +90,13 @@ const searchTransaction = async (req, res) => {
     );
     // profit
     result.profit = filtered.reduce((acc, cur) => {
-      const currentProfit = isNaN(cur.trans_profit) ? 0 : cur.trans_profit;
+      const currentProfit = Number(cur.trans_profit) || 0;
       acc += currentProfit;
       return acc;
     }, 0);
     // total sales
     result.total_volume_sold = filtered.reduce((acc, cur) => {
-      acc += cur.trans_volume_ratio;
+      acc += Number(cur.trans_volume_ratio) || 0;
       return acc;
     }, 0);
     return result;
@@ -111,7 +111,7 @@ const searchTransaction = async (req, res) => {
           cur.trans_By !== ADMIN &&
           cur.trans_Status !== "refunded"
         ) {
-          acc += cur.trans_amount;
+          acc += Number(cur.trans_amount) || 0;
         }
         return acc;
       }, 0);
@@ -124,7 +124,7 @@ const searchTransaction = async (req, res) => {
           cur.trans_By !== ADMIN &&
           cur.trans_Type !== "refund"
         ) {
-          acc += cur.trans_amount;
+          acc += Number(cur.trans_amount) || 0;
         }
         return acc;
       }, 0);

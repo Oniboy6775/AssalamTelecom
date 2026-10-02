@@ -230,11 +230,11 @@ const searchUsers = async (req, res) => {
   let noOfUsers = await User.countDocuments(queryObject);
   const totalPages = Math.ceil(noOfUsers / limit);
   // Total user balance
-  let allUser = await User.find().select("balance");
-  let allBalance = allUser.reduce((acc, curr) => {
-    acc += curr.balance;
-    return acc;
-  }, 0);
+  // $sum ignores missing/non-numeric balances, so one bad record can no longer turn the total into NaN
+  const balanceAgg = await User.aggregate([
+    { $group: { _id: null, total: { $sum: "$balance" } } },
+  ]);
+  let allBalance = balanceAgg.length ? balanceAgg[0].total : 0;
   res.status(200).json({
     users: result,
     totalPages,
