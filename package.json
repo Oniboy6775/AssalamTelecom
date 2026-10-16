@@ -1,5 +1,5 @@
 {
-  "name": "AssalamTelecom",
+  "name": "spp-data-depot",
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
@@ -8,7 +8,8 @@
   "start": "node server.js",
   "server": "nodemon server.js",
   "dev": "nodemon server.js",
-  "render-postbuild": "echo 'No client build step required'"
+  "render-postbuild": "echo 'No client build step required'",
+  "test": "node tests/run.js"
 },
 
   "author": "",

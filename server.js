@@ -2,6 +2,20 @@ const express = require("express");
 const app = express();
 const jwt = require("jsonwebtoken");
 
+// Defense-in-depth: without these, ANY uncaught exception or unhandled
+// promise rejection anywhere in the codebase (Node 15+) crashes the entire
+// process — taking down every user's requests, not just the one that
+// failed, until Render restarts it. This is exactly what just happened
+// with a single supplier-API failure inside BUYDATA. Log and keep running
+// instead of dying. This is a safety net, not a substitute for fixing the
+// underlying bug in whichever call actually threw.
+process.on("unhandledRejection", (reason) => {
+  console.error("UNHANDLED REJECTION — server is staying up:", reason);
+});
+process.on("uncaughtException", (error) => {
+  console.error("UNCAUGHT EXCEPTION — server is staying up:", error);
+});
+
 const ConnectDB = require("./Controllers/ConnectB");
 const auth = require("./Middleware/auth");
 const { dirname } = require("path");
@@ -19,6 +33,12 @@ const adminRouter = require("./Routes/adminRouter");
 const transactionRoute = require("./Routes/transactionsRouter");
 const webhookRoute = require("./Routes/webhookRoutes");
 const dataPlanRoutes = require("./Routes/dataPlanRoutes");
+
+// API Management (new — additive, does not touch existing /api/v1 routes)
+const apiV2Router = require("./Routes/apiV2Router");
+const adminApiManagementRouter = require("./Routes/adminApiManagementRouter");
+const apiUserRouter = require("./Routes/apiUserRouter");
+const adminUserPricingRouter = require("./Routes/adminUserPricingRouter");
 
 // extra security packages
 const helmet = require("helmet");
@@ -84,15 +104,59 @@ app.all("/api/v1/prices", async (req, res) => {
 app.use(morgan("dev"));
 // }
 
+// Public, unauthenticated interactive documentation for external developers
+// integrating with /api/v2. It's also embedded (via iframe) inside the
+// logged-in user's own account on the frontend (see /profile/api-docs
+// client-side), so this must be safe to frame from the frontend's origin —
+// helmet's default X-Frame-Options: SAMEORIGIN would otherwise block that
+// embed since the frontend and this backend are on different domains.
+// helmet's default CSP also blocks the inline scripts swagger-ui-express's
+// bundled page uses to boot itself. Both are relaxed only for this one
+// route — the rest of the app keeps helmet's full CSP/frame protection.
+const swaggerDocument = YAML.load(path.join(__dirname, "docs/openapi.yaml"));
+app.use(
+  "/api-docs",
+  (req, res, next) => {
+    res.removeHeader("Content-Security-Policy");
+    res.removeHeader("X-Frame-Options");
+    next();
+  },
+  swaggerUI.serve,
+  swaggerUI.setup(swaggerDocument, {
+    customSiteTitle: "SPP Data Depot API Docs",
+  })
+);
+
+app.get("/api-docs/API_MANAGEMENT.md", (req, res) => {
+  res.removeHeader("X-Frame-Options");
+  res.type("text/plain").sendFile(path.join(__dirname, "API_MANAGEMENT.md"));
+});
+
+app.get("/api-docs/PERSONAL_API_TOKEN.md", (req, res) => {
+  res.removeHeader("X-Frame-Options");
+  res.type("text/plain").sendFile(path.join(__dirname, "docs/PERSONAL_API_TOKEN.md"));
+});
+
 app.use("/api/v1/auth", usersRouter);
 app.use("/api/v1/buy", auth, purchaseRouter);
 app.use("/api/v1/fundWallet", fundWalletRouter);
+// Mounted before the general /api/v1/admin router so this more specific
+// path is matched first (kept this way for clarity, though Express would
+// also fall through correctly either order since adminRouter has no
+// matching route under /api-management).
+app.use("/api/v1/admin/api-management", adminApiManagementRouter);
+app.use("/api/v1/admin/user-pricing", adminUserPricingRouter);
 app.use("/api/v1/admin", adminRouter);
 app.use("/api/v1/transaction", auth, transactionRoute);
 app.use("/api/v1/webhook", webhookRoute);
 app.use("/api/v1/dataPlan", dataPlanRoutes);
+// Internal: a logged-in API User manages their own credentials/webhook
+app.use("/api/v1/api-user", apiUserRouter);
+
+// Public, stable developer-facing API — authenticated via API key, NOT the website JWT
+app.use("/api/v2", apiV2Router);
 app.use(cors({
-  origin: "https://localhost:3000",   // <-- your deployed frontend URL
+  origin: "https://sppdatadepot.com.ng",   // <-- your deployed frontend URL
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
 }));

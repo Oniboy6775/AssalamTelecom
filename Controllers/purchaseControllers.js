@@ -14,20 +14,41 @@ const BUYAIRTIME = require("./APICALLS/Airtime/buyAirtime");
 const BUYDATA = require("./APICALLS/Data/Data");
 const { default: axios } = require("axios");
 const { disco } = require("../API_DATA/disco");
+const {
+  resolveUserAirtimePrice,
+  resolveUserDataPrice,
+  resolveUserElectricityFee,
+} = require("../Services/userPricingService");
 const buyAirtime = async (req, res) => {
   const {
     user: { userId, userType },
     body: { mobile_number, amount, network },
   } = req;
-  const isReseller = userType === "reseller";
-  const isApiUser = userType === "api user";
-  let amountToCharge = amount * 0.99;
-  if (isReseller || isApiUser) amountToCharge = amount * 0.99;
-  const user = await User.findById(userId);
   if (!mobile_number || !amount || !network)
     return res.status(400).json({ msg: "All fields are required" });
   if (amount < 100)
     return res.status(400).json({ msg: "Minimum purchase is 100" });
+
+  const isReseller = userType === "reseller";
+  const isApiUser = userType === "api user";
+  let NETWORK = "";
+  if (network == "1") NETWORK = "MTN";
+  if (network == "2") NETWORK = "GLO";
+  if (network == "3") NETWORK = "AIRTEL";
+  if (network == "4") NETWORK = "9MOBILE";
+
+  let amountToCharge = amount * 0.99;
+  if (isReseller || isApiUser) amountToCharge = amount * 0.99;
+  // A per-user custom price (set by an admin for this specific person)
+  // always wins over the generic customer/reseller rate above.
+  const userOverride = await resolveUserAirtimePrice({
+    userId,
+    network: NETWORK,
+    faceAmount: Number(amount),
+  });
+  if (userOverride) amountToCharge = userOverride.chargedAmount;
+
+  const user = await User.findById(userId);
   const { balance } = user;
   if (balance < amountToCharge || balance - amountToCharge < 0)
     return res
@@ -39,11 +60,6 @@ const buyAirtime = async (req, res) => {
     amount,
     mobile_number,
   });
-  let NETWORK = "";
-  if (network == "1") NETWORK = "MTN";
-  if (network == "2") NETWORK = "GLO";
-  if (network == "3") NETWORK = "AIRTEL";
-  if (network == "4") NETWORK = "9MOBILE";
   if (status) {
     const transactionId = uuid();
     const payload = {
@@ -103,6 +119,10 @@ const buyData = async (req, res) => {
     });
   let amountToCharge = my_price;
   if (isReseller || isApiUser) amountToCharge = resellerPrice || my_price;
+  // A per-user custom price (set by an admin for this specific person)
+  // always wins over the generic customer/reseller price above.
+  const userOverride = await resolveUserDataPrice({ userId, dataId: dataTobuy.id });
+  if (userOverride) amountToCharge = userOverride.chargedAmount;
   if (balance < amountToCharge || balance - amountToCharge < 0)
     return res
       .status(400)
@@ -187,9 +207,13 @@ const validateMeter = async (req, res) => {
     console.log({ invalid, name, address });
     res.status(200).json({ name, address });
   } catch (error) {
-    console.log(error.response.data);
+    if (error.response) {
+      console.log(error.response.data);
+    } else {
+      console.log("validateMeter request failed with no response:", error.message);
+    }
     res.status(500).json({
-      msg: error.response.data.name || "An error occur.Please try again later",
+      msg: (error.response && error.response.data && error.response.data.name) || "An error occur.Please try again later",
     });
   }
 };
@@ -203,11 +227,15 @@ const validateCableTv = async (req, res) => {
 const buyElectricity = async (req, res) => {
   const { meterId, meterNumber, amount, meterType } = req.body;
   const { userId, userType } = req.user;
-  const amountToCharge = parseFloat(amount) + 50;
   if (!meterId || !meterNumber || !amount || !meterType) {
     console.log(req.body);
     return res.status(400).json({ msg: "All fields are required" });
   }
+  // A per-user custom fee (set by an admin for this specific person)
+  // always wins over the flat ₦50 convenience fee.
+  const userOverride = await resolveUserElectricityFee({ userId });
+  const fee = userOverride ? userOverride.fee : 50;
+  const amountToCharge = parseFloat(amount) + fee;
   const user = await User.findById(userId);
   const { balance } = user;
 

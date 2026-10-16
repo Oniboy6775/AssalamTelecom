@@ -230,11 +230,11 @@ const searchUsers = async (req, res) => {
   let noOfUsers = await User.countDocuments(queryObject);
   const totalPages = Math.ceil(noOfUsers / limit);
   // Total user balance
-  // $sum ignores missing/non-numeric balances, so one bad record can no longer turn the total into NaN
-  const balanceAgg = await User.aggregate([
-    { $group: { _id: null, total: { $sum: "$balance" } } },
-  ]);
-  let allBalance = balanceAgg.length ? balanceAgg[0].total : 0;
+  let allUser = await User.find().select("balance");
+  let allBalance = allUser.reduce((acc, curr) => {
+    acc += curr.balance;
+    return acc;
+  }, 0);
   res.status(200).json({
     users: result,
     totalPages,
@@ -331,17 +331,21 @@ const getCostPrice = async (req, res) => {
 const updateNotification = async (req, res) => {
   const { msg } = req.body;
   try {
-    await notification.updateOne({ msg });
+    await notification.findOneAndUpdate(
+      {},
+      { $set: { msg } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
     return res.status(200).json({ msg });
   } catch (e) {
+    console.log(e);
     return res.status(500).json({ msg: "something went wrong" });
   }
 };
 const getNotification = async (req, res) => {
   try {
-    const { msg } = await notification.findOne();
-    // console.log(msg);
-    return res.status(200).json({ msg });
+    const existing = await notification.findOne();
+    return res.status(200).json({ msg: existing ? existing.msg : "" });
   } catch (e) {
     console.log(e);
     return res.status(500).json({ msg: "something went wrong" });
