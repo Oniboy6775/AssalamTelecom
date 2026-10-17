@@ -166,45 +166,68 @@ const monnify = async (req, res) => {
   res.sendStatus(200); // acknowledge webhook
 
   try {
-    const stringifiedBody = JSON.stringify(req.body);
-    const computedHash = sha512.hmac(process.env.MONNIFY_API_SECRET, stringifiedBody);
+    const secret = process.env.MONNIFY_API_SECRET;
     const monnifySignature = req.headers["monnify-signature"];
+    const raw = req.rawBody || JSON.stringify(req.body);
+    const computedHash = sha512.hmac(secret || "", raw);
 
-    if (!monnifySignature || monnifySignature !== computedHash) return;
+    if (!monnifySignature || monnifySignature !== computedHash) {
+      console.log(
+        "Monnify webhook REJECTED: signature mismatch. Check MONNIFY_API_SECRET on the server matches your current LIVE secret key.",
+        { hasSignature: !!monnifySignature, hasSecret: !!secret, usedRawBody: !!req.rawBody }
+      );
+      return;
+    }
 
-    const {
-      eventType,
-      eventData: {
-        paidOn,
-        settlementAmount,
-        customer: { email },
-      },
-    } = req.body;
+    const { eventType, eventData } = req.body;
+    if (eventType !== "SUCCESSFUL_TRANSACTION") {
+      console.log("Monnify webhook ignored, event:", eventType);
+      return;
+    }
+    const { paidOn, settlementAmount, transactionReference } = eventData;
+    const email = String(eventData.customer?.email || "").trim().toLowerCase();
 
-    if (eventType !== "SUCCESSFUL_TRANSACTION") return;
+    // Monnify retries webhooks: never credit the same payment twice
+    if (transactionReference) {
+      const already = await Transaction.findOne({ apiResponseId: transactionReference });
+      if (already) {
+        console.log("Monnify webhook duplicate ignored:", transactionReference);
+        return;
+      }
+    }
 
     const user = await User.findOne({ email });
-    if (!user) return;
+    if (!user) {
+      console.log("Monnify webhook: no user with email", email);
+      return;
+    }
 
-    const { _id, balance, userName } = user;
+    const amount = Number(settlementAmount);
+    if (!amount || amount <= 0) {
+      console.log("Monnify webhook: bad settlementAmount", settlementAmount);
+      return;
+    }
 
-    await User.updateOne({ _id }, { $inc: { balance: settlementAmount } });
+    const { _id, userName } = user;
+    const before = Number(user.balance) || 0;
 
-    const transactionDetails = {
+    await User.updateOne({ _id }, { $inc: { balance: amount } });
+
+    await Transaction({
       trans_Id: uuid(),
       trans_By: _id,
       trans_Type: "wallet",
       trans_Network: "Auto-funding-SUCCESS||MNFY",
       phone_number: userName,
-      trans_amount: settlementAmount,
-      balance_Before: balance,
-      balance_After: balance + parseInt(settlementAmount),
+      trans_amount: amount,
+      balance_Before: before,
+      balance_After: before + amount,
       trans_Date: paidOn,
       trans_Status: "success",
+      apiResponseId: transactionReference,
       createdAt: Date.now(),
-    };
-
-    await Transaction(transactionDetails).save();
+    }).save();
+    console.log(`Monnify funding OK: ${userName} +${amount}`);
   } catch (error) {
     console.log("Monnify Webhook Error:", error.message);
   }

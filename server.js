@@ -63,7 +63,15 @@ app.set("trust proxy", 1);
 //     max: 100, // limit each IP to 100 requests per windowMs
 //   })
 // );
-app.use(express.json());
+app.use(
+  express.json({
+    // keep the exact bytes Monnify sent: its signature is computed on the raw body,
+    // re-stringifying the parsed body can change it (e.g. 1000.00 -> 1000)
+    verify: (req, res, buf) => {
+      req.rawBody = buf.toString("utf8");
+    },
+  })
+);
 app.use(helmet());
 app.use(xss());
 
